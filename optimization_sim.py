@@ -1,3 +1,4 @@
+import tracemalloc
 import psutil
 import os
 import msprime
@@ -1185,6 +1186,7 @@ def generateResults(storage_dir, dataid, num_samples_list, num_tumors_list, read
     print('start')
     #enforce variables that need to be int
     ts = time.time()
+    tracemalloc.start()
     #CHANGE THIS TO  WHERE YOU WANT TO STORE THE DATA!
     base_working_dir = storage_dir+dataid+'/' 
     reference_working_dir = base_working_dir + 'reference/'
@@ -1411,8 +1413,10 @@ def generateResults(storage_dir, dataid, num_samples_list, num_tumors_list, read
 
     te = time.time()
     print('time elapsed', te-ts)
+    current, peak = tracemalloc.get_traced_memory()
+    print(f"Current memory usage is {current / 10**3}KB; Peak was {peak / 10**3}KB; Diff = {(peak - current) / 10**3}KB")
+    tracemalloc.stop()
     return 0 
-
 
 #parameters for the full simulation. The program will sample randomly from each list
 num_samples_list = 1 
@@ -1426,12 +1430,12 @@ alpha_list = 10
 #can be True or False for these
 paired_list = 1
 WES_list = 0
-num_single_cell_list = 5
-coverage_list = 15
+num_single_cell_list = 1
+coverage_list = 30
 liquid_biopsy_list = 0
 ctdna_frac_list = 0.96 #fraction of real tumor reads in liquid biopsy
 
-use_leaf_only = 0
+use_leaf_only = 1
 clone_list = 5
 #rate list define the tumor mutations, can define or change however you want. 
 ultralow_rates_list = [1e-15]
@@ -1468,9 +1472,9 @@ if(random.random() < 0.5):
 else: 
     random_list = ultrahigh_rates_list
 #SNV, CNV, DEL, DELSMALL, INVERSION, TRANSLOCATION, BFB, CHROMOTHRIP, CHROMOPLEX, INSERTIONSMALL, KATAEGIS, ANEUPLOIDY
-list_of_rates = [high_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list,ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list]
+list_of_rates = [ultrahigh_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list,ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list]
 dataid = 'booltest'
-storage_dir = '/Users/arjunsrivatsa/Desktop/DesignOpt/simulation_results/'
+storage_dir = '/Users/arjunsrivatsa/Desktop/DesignOpt/test_results/'
 parameter_list = [storage_dir, dataid, num_samples_list, num_tumors_list, read_len_list, error_rate_list, frag_len_list, alpha_list, paired_list, WES_list, num_single_cell_list, coverage_list, liquid_biopsy_list, ctdna_frac_list, use_leaf_only, clone_list, pop_list, batch_size, subblock_size, LSH_hash, kmer_len,
  num_perm, thresh, ref_coverage, ref_clones, ref_read_len, ref_frag_len, ref_tot_nodes, ref_root_node, ref_int_nodes, ref_alpha, ref_paired, ref_WES, ref_erate, list_of_rates]
 #generateResults(*parameter_list)

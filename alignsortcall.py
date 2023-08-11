@@ -99,7 +99,7 @@ def alignment(input_file, output_file, ref, aligner='bwa', threads=4):
             cmd = 'bowtie2 --threads %s -x %s_index -1 %s -2 %s -S %s' % \
                  (threads, ref, input_file[0], input_file[1], output_file)
         else:
-            cmd = 'bowtie2 --thread %s -x %s_index -U %s -S %s' % \
+            cmd = 'bowtie2 --threads %s -x %s_index -U %s -S %s' % \
                  (threads, ref, input_file[0], output_file)
         #pdb.set_trace()
         os.system(cmd)
@@ -126,16 +126,20 @@ def samtools_sort_index(input_file, threads=4):
     '''
     prefix = input_file.split('.')[0]
     bam_name = '%s.bam' % prefix
+    read_group_bam_name = '%s.rg.bam' % prefix
     bam_sort_name = '%s.sorted.bam' % prefix
     
     # 1. convert to bam
     if not os.path.exists(bam_name):
         bam_cmd = 'samtools view -@ %s -bS %s -o %s' % (threads, input_file, bam_name)
         os.system(bam_cmd)
-    
+    #add read group for gatk
+    if not os.path.exists(read_group_bam_name):
+        rg_bam_cmd = 'samtools addreplacerg -r "@RG\tID:samplename\tSM:samplename" %s -o %s' % (bam_name, read_group_bam_name)
+        os.system(rg_bam_cmd)
     # 2. sort the bam
     if not os.path.exists(bam_sort_name):
-        sort_cmd = 'samtools sort -@ %s %s -o %s' % (threads, bam_name, bam_sort_name)
+        sort_cmd = 'samtools sort -@ %s %s -o %s' % (threads, read_group_bam_name, bam_sort_name)
         os.system(sort_cmd)
     
     # 3. index the sorted bam
@@ -157,6 +161,9 @@ def callSNV(normal_bam, tumor_bam, ref, result_dir, caller='freebayes', threads=
     checkpath(result_dir)
     if caller == 'freebayes':
         cmd = 'freebayes -f %s.fa %s > %s/freebayes.vcf' % (ref, tumor_bam, result_dir)
+        os.system(cmd)
+    elif caller == 'gatk':
+        cmd = 'gatk Mutect2 -R %s.fa -I %s -I %s -normal samplename -O %s/gatk.vcf' % (ref, tumor_bam, normal_bam, result_dir)
         os.system(cmd)
     elif caller == 'strelka':
         '''
@@ -226,7 +233,7 @@ def callSV(normal_bam, tumor_bam, ref, result_dir, caller='delly', threads=4):
         # call SV with delly
         #FIRST CHECK IF PAIRED, WHOLE GENOME 
         #cmd0 = 'EXPORT OMP_NUMTHREADS='
-        cmd1 = '/home/assrivat/delly_v0.9.1_linux_x86_64bit call -o %s/%s.bcf ' % (result_dir, prefix) + \
+        cmd1 = 'delly call -o %s/%s.bcf ' % (result_dir, prefix) + \
             '-g %s.fa ' % ref + \
             '%s %s' % (tumor_bam, normal_bam)
         print(cmd1)
@@ -273,13 +280,13 @@ kjwcrae
 '''
 
 
-def run_align_sort_index(data_name, ref, threads=4, normal=1, tumor_num=0, sample_num=0, single_cell_flag = False, single_cell_num = 0):
+def run_align_sort_index(data_directory, data_name, ref, threads=4, normal=1, tumor_num=0, sample_num=0, single_cell_flag = False, single_cell_num = 0):
 
     '''
     go with semi-automatic first -- define which tumor and cell smaple for run
     '''
-    data_dir = "/home/assrivat/simulation_results/%s" % data_name
-    result_dir ="/home/assrivat/simulation_results/results/%s" % data_name
+    data_dir = data_directory+"%s" % data_name
+    result_dir =data_directory+"results/%s" % data_name
     checkpath(result_dir)
     if normal == 1:
         normal_dir = data_dir + '/reference'
@@ -311,7 +318,7 @@ def run_align_sort_index(data_name, ref, threads=4, normal=1, tumor_num=0, sampl
             checkpath(tumor_res_dir)
         # 0. define the aligner
         info_dic = get_info(info_directory + '/parameter_list.txt')
-        read_len = int(info_dic['read len'])
+        read_len = int(float(info_dic['read len']))
         
         if read_len <= 500:
             aligner = 'bowtie2'
@@ -332,7 +339,7 @@ def run_align_sort_index(data_name, ref, threads=4, normal=1, tumor_num=0, sampl
         
     
     
-def run_variant(data_name, ref, tumor_num, sample_num, \
+def run_variant(data_directory, data_name, ref, tumor_num, sample_num, \
                 snv_caller="None", 
                 cnv_caller="None", 
                 sv_caller="None", 
@@ -342,12 +349,12 @@ def run_variant(data_name, ref, tumor_num, sample_num, \
     '''
     call variants specific caller
     '''
-    result_dir = "/home/assrivat/simulation_results/results/%s" % data_name
+    result_dir = data_directory+"results/%s" % data_name
     # 0. specify the parameters
     if(align_flag):
-        normal_bam = '/home/assrivat/simulation_results/results/{}/normal/normal.sorted.bam'.format(data_name)
+        normal_bam = data_directory+'results/{}/normal/normal.sorted.bam'.format(data_name)
     else: 
-        normal_bam = '/home/assrivat/simulation_results/results/normal/normal.sorted.bam'
+        normal_bam = data_directory+'results/normal/normal.sorted.bam'
     if not single_cell_flag:
         tumor_bam = '%s/tumor_%s/samplenum_%s/tumorB_%s_%s.sorted.bam' % (result_dir, tumor_num, sample_num, tumor_num, sample_num)
     else:
@@ -369,6 +376,9 @@ def run_variant(data_name, ref, tumor_num, sample_num, \
             strelka_dir = snv_result_dir + '/strelka'
             callSNV(normal_bam, tumor_bam, ref, strelka_dir, caller=snv_caller, threads=threads)
 
+        elif snv_caller == 'gatk':
+            gatk_dir = snv_result_dir + '/gatk'
+            callSNV(normal_bam, tumor_bam, ref, gatk_dir, caller = snv_caller, threads = threads)
         else:
             print('Please choose freebayes or strelka...')
             exit()
@@ -391,11 +401,12 @@ def run_variant(data_name, ref, tumor_num, sample_num, \
             sv_result_dir = '%s/tumor_%s/samplenum_%s/sv' % (result_dir, tumor_num, sample_num)
         else: 
             sv_result_dir = '%s/tumor_%s/samplenum_%s_singlecell_%s/sv' % (result_dir, tumor_num, sample_num,single_cell_num) 
-        checking_directory = '/home/assrivat/simulation_results/{}/tumor_{}/samplenum_{}'.format(data_name, tumor_num,sample_num)
+        checking_directory = data_directory+'{}/tumor_{}/samplenum_{}'.format(data_name, tumor_num,sample_num)
         if(checkPaired(checking_directory)):
             if sv_caller == 'delly':
                 delly_dir = sv_result_dir + '/delly'
                 checkpath(delly_dir)
+                print('delly proced?')
                 callSV(normal_bam, tumor_bam, ref, delly_dir)
             elif sv_caller == 'gridss':
                 gridss_dir = sv_result_dir + '/gridss'
@@ -405,8 +416,8 @@ def run_variant(data_name, ref, tumor_num, sample_num, \
                 print('Please choose delly...')
                 exit()
     
-def getTumorDirectories(data_name): 
-    data_path = '/home/assrivat/simulation_results/{}/'.format(data_name)
+def getTumorDirectories(data_directory, data_name): 
+    data_path = data_directory+'{}/'.format(data_name)
     total_num_tumors = sum([os.path.isdir(data_path+i) for i in os.listdir(data_path)])-1
     list_of_samples = []
     for i in range(total_num_tumors): 
@@ -426,35 +437,20 @@ def checkPaired(search_dir):
             if(tracker != 9):
                  list_of_parameters.append(val)
             tracker += 1
-    if(list_of_parameters[7] == ' True'): 
+    #if it equals 1 or true
+    if(list_of_parameters[7] == ' True' or list_of_parameters[7] == ' 1.0'): 
         return True
     else: 
          return False
 
-def main():
-    # 1. data folder, also the parent folder to save results
-    data_name = sys.argv[1]
-    #parent_dir = "/home/assrivat/haoyun_files/%s" % data_name
-    # 2. to align or not, 0 or 1
-    align = int(sys.argv[2])
-    # 3. if not normal sample, define the tumor sample: 0, 1, 2, ...
-    tumor_num = sys.argv[3]
-    # 4. under each tumor sample, define the cell sample: 0, 1, 2, ...
-    sample_num = sys.argv[4]
-    # 5. define the threads to use
-    threads = sys.argv[5]
-    # 6. define the caller
-    snv_caller = sys.argv[6]
-    cnv_caller = sys.argv[7]
-    sv_caller = sys.argv[8]
-    ref_name = sys.argv[9]
-    align_normal = True
-    ref = '/home/assrivat/simulation_results/ref/{}/{}'.format(ref_name,ref_name)
-    samples = getTumorDirectories(data_name)
+def doalignsortcall(data_directory, data_name, align, tumor_num, sample_num, threads, snv_caller, cnv_caller, sv_caller, ref_name, align_normal = True):
+    print(data_directory)
+    ref = '/Users/arjunsrivatsa/Desktop/DesignOpt/test_results/ref/{}/{}'.format(ref_name,ref_name)
+    samples = getTumorDirectories(data_directory, data_name)
     # 1. run alignment
     if(align == 1):
         if(align_normal):
-            run_align_sort_index(data_name, ref, normal=1, tumor_num=tumor_num, sample_num=sample_num, threads=threads)
+            run_align_sort_index(data_directory, data_name, ref, normal=1, tumor_num=tumor_num, sample_num=sample_num, threads=threads)
             print('sorted normal')
         for i in range(len(samples)): 
             for j in samples[i]:
@@ -468,8 +464,9 @@ def main():
                 else: 
                     single_cell_flag = False
                     single_cell_num = 0
-                run_align_sort_index(data_name, ref, normal = 0, tumor_num=str(i), sample_num=sample_num, threads = threads, single_cell_flag= single_cell_flag, single_cell_num= single_cell_num)
+                run_align_sort_index(data_directory, data_name, ref, normal = 0, tumor_num=str(i), sample_num=sample_num, threads = threads, single_cell_flag= single_cell_flag, single_cell_num= single_cell_num)
     # 2. run snv calling
+    print("CALLING NOW")
     for i in range(len(samples)): 
         for j in samples[i]:
             print(j)
@@ -484,10 +481,27 @@ def main():
             else: 
                 single_cell_flag = False
                 single_cell_num = 0
-            run_variant(data_name, ref, tumor_num=str(i), sample_num=sample_num, snv_caller=snv_caller, cnv_caller=cnv_caller, sv_caller=sv_caller, threads=threads,single_cell_flag = single_cell_flag,single_cell_num= single_cell_num, align_flag = align_normal)
+            run_variant(data_directory, data_name, ref, tumor_num=str(i), sample_num=sample_num, snv_caller=snv_caller, cnv_caller=cnv_caller, sv_caller=sv_caller, threads=threads,single_cell_flag = single_cell_flag,single_cell_num= single_cell_num, align_flag = align_normal)
     
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     # 1. data folder, also the parent folder to save results
+#     data_name = sys.argv[1]
+#     #parent_dir = "/home/assrivat/haoyun_files/%s" % data_name
+#     # 2. to align or not, 0 or 1
+#     align = int(sys.argv[2])
+#     # 3. if not normal sample, define the tumor sample: 0, 1, 2, ...
+#     tumor_num = sys.argv[3]
+#     # 4. under each tumor sample, define the cell sample: 0, 1, 2, ...
+#     sample_num = sys.argv[4]
+#     # 5. define the threads to use
+#     threads = sys.argv[5]
+#     # 6. define the caller
+#     snv_caller = sys.argv[6]
+#     cnv_caller = sys.argv[7]
+#     sv_caller = sys.argv[8]
+#     ref_name = sys.argv[9]
+#     align_normal = True
+#     doalignsortcall(data_name, align, tumor_num, sample_num, threads, snv_caller, cnv_caller, sv_caller, ref_name, align_normal = True)
     
     
     

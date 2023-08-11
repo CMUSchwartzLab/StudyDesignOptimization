@@ -7,9 +7,11 @@ import numpy as np
 from sys import argv
 import math
 import random
+import shutil
 import time
 from optimization_sim import *
-
+from alignsortcall import *
+from fullAnalysisSim import *
 #from smt.applications import EGO
 #from smt.applications.ego import Evaluator
 #from smt.utils.sm_test_case import SMTestCase
@@ -42,23 +44,32 @@ from smt.utils.design_space import (
 )
 #CONSTANTS
 eps = 1e-9
-n_samples = 10
-budget = 4
+n_samples = 30
+budget = 3
 n_latins = 2
 lamb = 0
 cost_max = 1000000
-NUM_CORES = 8
+NUM_CORES = 7
+SNV_CALLER = 'gatk'
+CNV_CALLER = 'None'
+SV_CALLER = 'delly'
+REF_NAME = 'fakegenome'
 mesh_size = 5
-lowerbounds = [250,1,0,0,0,0]
-upperbounds = [5000,100,0.99,10,1,1]
+lowerbounds = [150,1,0,0,0,0]
+upperbounds = [5000,100,0.0000001,1,1,1]
 e_coeff = 0.7
 alpha = 5
 grad_d_param = 1
 perturbation_vector = [100,1,0.01,1,1,0.01]
 direction_matrix= np.array([200, 5,0.01,1,1,0.02])
 categorical_flag = [1,0,0,1,1,0]
-num_cores = 5
 default_param_list = parameter_list.copy()
+
+def wipedirectory(the_dir):
+  try:
+    shutil.rmtree(the_dir)
+  except OSError as e:
+    print("Error: %s - %s." % (e.filename, e.strerror))
 
 def sigmoid(x):
   return 1 / (1 + math.exp(-x))
@@ -227,10 +238,9 @@ def fullMeshIteration(initial_points, number_mesh_points, current_mesh_width, di
   x_points = np.array(x_points)
   return x_points
 
-def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory):
-  #parse X and feed to simulation function or program, and parallelize, reparse results
-  #PARSE X
+def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata = True):
   simulation_list = []
+  results_directories = []
   for i in range(len(X)):
     dataid = 'optimization_round'+str(iteration_number)+'_datapoint'+str(i)
     subparam_list = default_param_list.copy()
@@ -251,11 +261,54 @@ def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory
     subparam_list[10] = single_cells
     subparam_list[11] = coverage
     simulation_list.append(subparam_list)
+    results_directories.append(dataid)
   pool = Pool(NUM_CORES)
+  #HERE THIS NEEDS TO BE SPLIT INTO ALL COMPUTERS and then CORES PER COMP
   pool.starmap(generateResults, simulation_list)
+
+  print('FINISHED SIMULATING')
   #generate and parse the results of the simualtions
-  
-  points = loss_function_matrix(X)
+  #HERE THIS NEEDS TO BE SPLIT INTO COMPUTERS AND CORES PER COMP
+  command_list = []
+  for i in results_directories:
+    command_i = []
+    command_i.append(opt_store_directory)
+    command_i.append(i)
+    command_i.extend([1,0,0])
+    command_i.append(NUM_CORES)
+    command_i.append(SNV_CALLER)
+    command_i.append(CNV_CALLER)
+    command_i.append(SV_CALLER)
+    command_i.append(REF_NAME)
+    command_list.append(command_i)
+  #here split command list accross computers
+  for i in command_list:
+    doalignsortcall(*i)
+  print('ANALYZING NOW')
+  #run fullAnalysis
+  analysis_list = []
+  for i in results_directories:
+    analysis_i = []
+    analysis_i.append(opt_store_directory)
+    analysis_i.append(i)
+    analysis_i.append(SNV_CALLER)
+    analysis_i.append(SV_CALLER)
+    analysis_list.append(analysis_i)
+  #this should be pretty fast and low mem so this is prob fine on the cluster
+  scores = pool.starmap(doanalysis, analysis_list)
+  print('scores round i', scores)
+  #wipe data -- COMMENT/DELETE THIS BLOCK IF YOU WANT TO KEEP ALL THE DATA OTHERWISE INTERMEDIARY DATA IS WIPED!
+  if(wipedata):
+    for i in results_directories:
+      directory_i_data= opt_store_directory+i
+      wipedirectory(directory_i_data)
+      results_i_data = opt_store_directory+'results/'+i
+      wipedirectory(results_i_data)
+  return scores 
+
+def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory):
+  points = doSimulationPipeline(X, lamb, iteration_number, opt_store_directory)
+  #points = loss_function_matrix(X)
   points = points.reshape(-1,1)
   costs = cost_function(X)
   costs = costs.reshape(-1,1)
@@ -301,8 +354,10 @@ def getNewSetOfPointsFromSurrogate(surrogate_model, allX , n_samples, exploit_co
   Xvar = variance_sample(300*n_samples) #make this giant
   #construct bounds around low points and sample there
   cutoff = int(0.2*allX.shape[0])
+  cutoff = max(1, cutoff)
   miniarray = allX[:cutoff, :-1]
   miniarray = miniarray.astype(float)
+  #print(cutoff, miniarray, allX)
   lowcutoff = []
   highcutoff = []
   for i in range(miniarray.shape[1]):
@@ -403,7 +458,9 @@ def fullOptimization(budget, n_samples, lowerbounds, upperbounds, n_latins, e_co
   #CHECK THIS CODE, some numerics needed
   while(current_size < target_size):
     for i in range(n_latins):
-      sampling = MixedIntegerSamplingMethod (LHS , design_space, criterion ="ese", random_state = np.random.randint(0,10000))
+      random_state = random.randint(0,1000)
+      sampling = MixedIntegerSamplingMethod (LHS , design_space, criterion ="ese", random_state = random_state) #random_state = random_state)
+      #sampling = MixedIntegerSamplingMethod (LHS , design_space, criterion ="ese", random_state = np.random.randint(0,10000))
       Xi = sampling (n_doe)
       Xi = checkCost(Xi, cost_function)
       nullX = np.vstack((nullX, Xi))
