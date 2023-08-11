@@ -44,7 +44,7 @@ from smt.utils.design_space import (
 )
 #CONSTANTS
 eps = 1e-9
-n_samples = 30
+n_samples = 10
 budget = 3
 n_latins = 2
 lamb = 0
@@ -308,6 +308,7 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
 
 def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory):
   points = doSimulationPipeline(X, lamb, iteration_number, opt_store_directory)
+  points = np.array(points)
   #points = loss_function_matrix(X)
   points = points.reshape(-1,1)
   costs = cost_function(X)
