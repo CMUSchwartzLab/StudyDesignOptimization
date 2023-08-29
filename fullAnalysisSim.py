@@ -24,6 +24,8 @@ def intervalSetMetric(interval_a, interval_b):
 	for z in interval_b: 
 		groups2[z[-1]].append(z)
 	lol2 = list(groups2.values())
+	print('lol1', lol1)
+	print('lol2', lol2)
 	lol2.sort(key= lambda x: x[0][2])
 	lol1.sort(key=lambda x: x[0][2])
 	metric_list = []
@@ -364,18 +366,33 @@ def doanalysis(data_directory, data_name, snv_caller = 'freebayes', sv_caller = 
 				sv_resultfile.write('tumor {}, sample {}, del met {}, inv met {}\n'.format(i,k,deletion_metric, inversion_metric))
 				sv_param_list.extend([i,k,str(-1),deletion_metric, inversion_metric])
 				sv_lol_vals.append(sv_param_list)
-		tp,fp,mm = compareVcftoInfoSNV(aggregate_vcfs,f,m, snv_caller)
+		try:
+			tp,fp,mm = compareVcftoInfoSNV(aggregate_vcfs,f,m, snv_caller)
+		except: 
+			tp,fp, mm = 0, 0, 1
 		new_write_list = ['-1']*13
 		new_write_list.extend([i,tp,fp,mm])
 		list_of_list_vals.append(new_write_list)
-		del_tot = compareVcftoInfoSV(aggregate_sv_vcfs, f, m, 2)
-		inv_tot = compareVcftoInfoSV(aggregate_sv_vcfs, f, m, 4)
+		try:
+			del_tot = compareVcftoInfoSV(aggregate_sv_vcfs, f, m, 2)
+		except:
+			del_tot = 0
+		try:
+			inv_tot = compareVcftoInfoSV(aggregate_sv_vcfs, f, m, 4)
+		except:
+			inv_tot = 0
 		svwl = ['-1']*13
 		svwl.extend([i,del_tot,inv_tot])
+		sv_s = (del_tot + inv_tot)/2
 		sv_lol_vals.append(svwl)
 		sv_resultfile.write('AGGREGATE TUMOR {}, del val {} inv value {}\n'.format(i,del_tot, inv_tot))
 		result_file.write('AGGREGATE TUMOR {}, values: {}, {}, {}\n'.format(i,tp,fp,mm))
-		FINAL_SCORE = tp/(tp+mm)
+		if(tp == 0 and mm == 0):
+			snv_s = 0.5
+		else:
+			snv_s = tp/(tp+mm)
+		FINAL_SCORE = (sv_s + snv_s)/2
+		FINAL_LOSS = 1-FINAL_SCORE
 		aggregate_sv_vcfs.clear()
 		aggregate_vcfs.clear()
 		subtuples_list.clear()
@@ -383,7 +400,7 @@ def doanalysis(data_directory, data_name, snv_caller = 'freebayes', sv_caller = 
 	sv_final_results = pd.DataFrame(sv_lol_vals, columns=['num_leaves', 'dir_conc','cell_pop', 'coverage', 'num_single_cells', 'read_len', 'frag_len', 'paired', 'exome','poisson_time', 'error_rate','tumor_num', 'sample_num', 'aggregate_tumor','del metric', 'inv metric'])
 	final_results.to_csv(data_directory+'results/{}/{}_resultsSNP.csv'.format(data_name,data_name), sep='\t')
 	sv_final_results.to_csv(data_directory+'results/{}/{}_resultsSV.csv'.format(data_name,data_name), sep='\t')
-	return FINAL_SCORE
+	return FINAL_LOSS
 #if __name__ == '__main__':
 #	doanalysis()
  

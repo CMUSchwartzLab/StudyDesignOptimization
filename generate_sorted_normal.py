@@ -289,7 +289,7 @@ def run_align_sort_index(data_directory, data_name, ref, threads=4, normal=1, tu
     result_dir =data_directory+"results/%s" % data_name
     checkpath(result_dir)
     if normal == 1:
-        normal_dir = data_dir + '/reference'
+        normal_dir = data_dir
         normal_res_dir = result_dir + '/normal'
         checkpath(normal_res_dir)
         # 0. define aligner
@@ -354,9 +354,7 @@ def run_variant(data_directory, data_name, ref, tumor_num, sample_num, \
     if(align_flag):
         normal_bam = data_directory+'results/{}/normal/normal.sorted.bam'.format(data_name)
     else: 
-        #normal_bam = data_directory+'results/normal/normal.sorted.bam'
-        #normal_bam = '/projects/schwartzlabscratch/DesignOpt/fakereference/results/reference/normal/normal.sorted.bam'
-        normal_bam = '/projects/schwartzlabscratch/DesignOpt/reference/results/reference/normal/normal.sorted.bam'
+        normal_bam = data_directory+'results/normal/normal.sorted.bam'
     if not single_cell_flag:
         tumor_bam = '%s/tumor_%s/samplenum_%s/tumorB_%s_%s.sorted.bam' % (result_dir, tumor_num, sample_num, tumor_num, sample_num)
     else:
@@ -445,7 +443,7 @@ def checkPaired(search_dir):
     else: 
          return False
 
-def doalignsortcall(data_directory, data_name, align, tumor_num, sample_num, threads, snv_caller, cnv_caller, sv_caller, ref_name, align_normal = False):
+def doalignsortcall(data_directory, data_name, align, tumor_num, sample_num, threads, snv_caller, cnv_caller, sv_caller, ref_name, align_normal = True):
     print(data_directory)
     ref = '/projects/schwartzlabscratch/DesignOpt/test_results/ref/{}/{}'.format(ref_name,ref_name)
     samples = getTumorDirectories(data_directory, data_name)
@@ -485,7 +483,12 @@ def doalignsortcall(data_directory, data_name, align, tumor_num, sample_num, thr
                 single_cell_num = 0
             run_variant(data_directory, data_name, ref, tumor_num=str(i), sample_num=sample_num, snv_caller=snv_caller, cnv_caller=cnv_caller, sv_caller=sv_caller, threads=threads,single_cell_flag = single_cell_flag,single_cell_num= single_cell_num, align_flag = align_normal)
     
-# if __name__ == '__main__':
+data_directory = '/projects/schwartzlabscratch/DesignOpt/reference/'
+data_name = 'reference'
+ref_name = 'hg38'
+ref = '/projects/schwartzlabscratch/DesignOpt/test_results/ref/{}/{}'.format(ref_name,ref_name)
+run_align_sort_index(data_directory,data_name, ref, 50) 
+#if name == 'main':
 #     # 1. data folder, also the parent folder to save results
 #     data_name = sys.argv[1]
 #     #parent_dir = "/home/assrivat/haoyun_files/%s" % data_name

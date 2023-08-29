@@ -30,8 +30,8 @@ use_signatures = False
 signature_alpha = 10
 signature_distributions = [float(1/num_signatures)]*num_signatures
 #genome and exome delimiters
-full_genome = '/projects/schwartzlabscratch/DesignOpt/data/hg38.fa'
-EXON_FILE = '/projects/schwartzlabscratch/DesignOpt/data/exonsegments.txt'
+full_genome = '/projects/schwartzlabscratch/DesignOpt/data/fakegenome.fa'
+EXON_FILE = '/projects/schwartzlabscratch/DesignOpt/data/fakeexonsegments.txt'
 #CHANGE THIS TO  WHERE YOU WANT TO STORE THE DATA!
 reversemap = {'chr1':0, 'chr10':2, 'chr11':4, 'chr12':6, 'chr13':8, 'chr14':10, 'chr15':12, 'chr16':14, 'chr17':16, 'chr18':18, 'chr19':20, 'chr2':22, 'chr20':24, 'chr21':26, 'chr22':28, 'chr3':30, 'chr4':32, 'chr5':34, 'chr6':36, 'chr7':38, 'chr8':40, 'chr9':42, 'chrX':44, 'chrY':45} 
 numchrommap = {0: 'chr1', 1: 'chr1', 2: 'chr10', 3: 'chr10', 4: 'chr11', 5: 'chr11', 6: 'chr12', 7: 'chr12', 8: 'chr13', 9: 'chr13', 10: 'chr14', 11: 'chr14', 12: 'chr15', 13: 'chr15', 14: 'chr16', 15: 'chr16', 16: 'chr17', 17: 'chr17', 18: 'chr18', 19: 'chr18', 20: 'chr19', 21: 'chr19', 22: 'chr2', 23: 'chr2', 24: 'chr20', 25: 'chr20', 26: 'chr21', 27: 'chr21', 28: 'chr22', 29: 'chr22', 30: 'chr3', 31: 'chr3', 32: 'chr4', 33: 'chr4', 34: 'chr5', 35: 'chr5', 36: 'chr6', 37: 'chr6', 38: 'chr7', 39: 'chr7', 40: 'chr8', 41: 'chr8', 42: 'chr9', 43: 'chr9', 44: 'chrX', 45: 'chrY'}
@@ -1253,7 +1253,6 @@ def generateResults(storage_dir, dataid, num_samples_list, num_tumors_list, read
 
     del chroms
     getmemory()
-    '''
     if(ref_paired):
         if(ref_WES):
             exonrunPairedSim(ref_int_nodes, ref_coverage, ref_read_len, ref_frag_len, reference_working_dir,
@@ -1408,21 +1407,22 @@ def generateResults(storage_dir, dataid, num_samples_list, num_tumors_list, read
         ctdna_frac = ctdna_frac_list
         lbrunSim(num_tumors, running_clone_list, lb_coverage,
                  base_working_dir, lb_dir, ref_root_node, lb_alpha, ctdna_frac, 6)
-
+    '''
     te = time.time()
     print('time elapsed', te-ts)
     current, peak = tracemalloc.get_traced_memory()
     print(f"Current memory usage is {current / 10**3}KB; Peak was {peak / 10**3}KB; Diff = {(peak - current) / 10**3}KB")
     tracemalloc.stop()
+
     return 0 
 
 #parameters for the full simulation. The program will sample randomly from each list
 num_samples_list = 1 
 num_tumors_list = 1
 # frag length should be at least 100, and the read length should be less than the frag length
-read_len_list = 150
+read_len_list = 200
 error_rate_list = 0.0
-frag_len_list = 200
+frag_len_list = 400
 #concentration of the clones
 alpha_list = 10
 #can be True or False for these
@@ -1453,7 +1453,7 @@ thresh=0.33
 
 
 #reference/normal sequencing parameters
-ref_coverage = 30 #random.choice(coverage_list)
+ref_coverage = 40 #random.choice(coverage_list)
 ref_clones = 5  # this doesnt matter
 ref_read_len = read_len_list
 ref_frag_len = frag_len_list
@@ -1471,9 +1471,9 @@ else:
     random_list = ultrahigh_rates_list
 #SNV, CNV, DEL, DELSMALL, INVERSION, TRANSLOCATION, BFB, CHROMOTHRIP, CHROMOPLEX, INSERTIONSMALL, KATAEGIS, ANEUPLOIDY
 list_of_rates = [high_rates_list, medium_rates_list, ultralow_rates_list, high_rates_list, high_rates_list, ultralow_rates_list,ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list]
-dataid = 'booltest'
-storage_dir = '/projects/schwartzlabscratch/DesignOpt/test_results/'
+dataid = 'fakereference'
+storage_dir = '/projects/schwartzlabscratch/DesignOpt/'
 parameter_list = [storage_dir, dataid, num_samples_list, num_tumors_list, read_len_list, error_rate_list, frag_len_list, alpha_list, paired_list, WES_list, num_single_cell_list, coverage_list, liquid_biopsy_list, ctdna_frac_list, use_leaf_only, clone_list, pop_list, batch_size, subblock_size, LSH_hash, kmer_len,
  num_perm, thresh, ref_coverage, ref_clones, ref_read_len, ref_frag_len, ref_tot_nodes, ref_root_node, ref_int_nodes, ref_alpha, ref_paired, ref_WES, ref_erate, list_of_rates]
-#generateResults(*parameter_list)
+generateResults(*parameter_list)
 
