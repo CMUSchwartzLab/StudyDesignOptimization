@@ -44,22 +44,22 @@ from smt.utils.design_space import (
 )
 #CONSTANTS
 eps = 1e-9
-n_samples = 15
+n_samples = 25
 budget = 8
 n_latins = 2
-lamb = 0
+lamb = 1
 cost_max = 1000000
-NUM_SIM_CORES = 30
-NUM_ALIGN_CORES = 8
+NUM_SIM_CORES = 100
+NUM_ALIGN_CORES = 24
 PARALLEL_CORES = 16
 TOTAL_CORES = 140
 SNV_CALLER = 'strelka'
 CNV_CALLER = 'None'
-SV_CALLER = 'delly'
+SV_CALLER = 'dysgu'
 REF_NAME = 'hg38'
 mesh_size = 5
-lowerbounds = [500,1,0,0,0,0, 1]
-upperbounds = [10000,20,0.1,1,1,1, 2]
+lowerbounds = [100,1,0,0,0,0, 1]
+upperbounds = [10000,100,0.1,1,1,1, 2]
 categorical_flag = [1,0,0,1,1,1,1]
 perturbation_vector = [200,1,0.009,1,1,1, 1]
 direction_matrix= np.array([200, 5,0.009,1,1,1, 1])
@@ -149,6 +149,16 @@ def cost_function_vec(X):
   return cost_function(X[0], X[1], X[2], X[3], X[4], X[5], X[6])
 def cost_function_matrix(X):
   return np.apply_along_axis(cost_function_vec, 1, X)
+
+def flat_budget_function(x_1, x_2, x_3, x_4, x_5, x_6, x_7): 
+  return 0
+def flat_cost_fn(x_1, x_2, x_3, x_4, x_5, x_6, x_7, max_budget = cost_max): 
+  return 0 
+def flat_cost_vec(X): 
+  return flat_cost_fn(X[0], X[1], X[2], X[3], X[4], X[5], X[6])
+def flat_cost_matrix(X): 
+  return np.apply_along_axis(flat_cost_vec, 1, X)
+
 
 #ADJUST BUDGET and fix cost function into the algorithm
 def probabilistic_round(x):
@@ -526,6 +536,6 @@ if __name__ == '__main__':
   #create directory to store run 
   default_param_list[0] = opt_store_directory
   makedir(opt_store_directory)
-  allDesigns, sm_loss = fullOptimization(design_space, budget, n_samples, lowerbounds, upperbounds, n_latins, e_coeff, alpha, direction_matrix, categorical_flag, lamb, mesh_size, grad_d_param, perturbation_vector, cost_function_matrix, cost_max)
+  allDesigns, sm_loss = fullOptimization(design_space, budget, n_samples, lowerbounds, upperbounds, n_latins, e_coeff, alpha, direction_matrix, categorical_flag, lamb, mesh_size, grad_d_param, perturbation_vector, flat_cost_matrix, cost_max)
   te = time.time()
   print('time elapsed', te-ts)

@@ -244,7 +244,9 @@ def callSV(normal_bam, tumor_bam, ref, result_dir, caller='delly', threads=4):
     if caller == 'gridss': 
         cmd = '/home/assrivat/gridss --jar /home/assrivat/gridss-2.13.2-gridss-jar-with-dependencies.jar -r {}.fa -t 8 -o {}/{}.vcf {} {}'.format(ref, result_dir, prefix, normal_bam, tumor_bam)
         os.system(cmd)
-  
+    if caller == 'dysgu': 
+        cmd = 'dysgu run -p {} {}.fa {} {} > {}/{}.vcf -x'.format(threads, ref, result_dir, tumor_bam, result_dir, prefix) 
+        os.system(cmd)
 
 
 def align_normal():
@@ -414,6 +416,10 @@ def run_variant(data_directory, data_name, ref, tumor_num, sample_num, \
                 gridss_dir = sv_result_dir + '/gridss'
                 checkpath(gridss_dir)
                 callSV(normal_bam, tumor_bam, ref, gridss_dir, caller = 'gridss', threads = threads)
+            elif sv_caller == 'dysgu':
+                dysgu_dir = sv_result_dir + '/dysgu'
+                checkpath(dysgu_dir)
+                callSV(normal_bam, tumor_bam, ref, dysgu_dir, caller = 'dysgu', threads= threads)
             else:
                 print('Please choose delly...')
                 exit()

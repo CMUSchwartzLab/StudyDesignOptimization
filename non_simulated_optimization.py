@@ -44,25 +44,25 @@ from smt.utils.design_space import (
 )
 #CONSTANTS
 eps = 1e-9
-n_samples = 10
+n_samples = 15
 budget = 8
 n_latins = 2
 lamb = 0
 cost_max = 1000000
-NUM_SIM_CORES = 50
-NUM_ALIGN_CORES = 10
-PARALLEL_CORES = 10
-TOTAL_CORES = 50
+NUM_SIM_CORES = 60
+NUM_ALIGN_CORES = 24
+PARALLEL_CORES = 16
+TOTAL_CORES = 140
 SNV_CALLER = 'strelka'
 CNV_CALLER = 'None'
-SV_CALLER = 'gatk'
+SV_CALLER = 'delly'
 REF_NAME = 'hg38'
 mesh_size = 5
-lowerbounds = [500,1,0,0,0,0, 1]
-upperbounds = [10000,20,0.1,1,1,1, 2]
+lowerbounds = [100,1,0,0,0,0, 1]
+upperbounds = [10000,200,0.1,1,1,1, 2]
 categorical_flag = [1,0,0,1,1,1,1]
 perturbation_vector = [200,1,0.009,1,1,1, 1]
-direction_matrix= np.array([200, 3,0.009,1,1,1, 1])
+direction_matrix= np.array([200, 5,0.009,1,1,1, 1])
 e_coeff = 0.45
 alpha = 6
 grad_d_param = 1
@@ -270,7 +270,7 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
     subparam_list[11] = coverage
     simulation_list.append(subparam_list)
     results_directories.append(dataid)
-  pool = Pool(NUM_SIM_CORES)
+  pool = Pool(4*NUM_SIM_CORES)
   #HERE THIS NEEDS TO BE SPLIT INTO ALL COMPUTERS and then CORES PER COMP
   pool.starmap(generateResults, simulation_list)
   pool.close()
@@ -290,7 +290,7 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
     command_i.append(REF_NAME)
     command_list.append(command_i)
   #here split command list accross computers
-  threading_pool = Pool(5*PARALLEL_CORES)
+  threading_pool = Pool(12*PARALLEL_CORES)
   #for i in command_list:
   #  doalignsortcall(*i)
   threading_pool.starmap(doalignsortcall, command_list)
@@ -306,7 +306,7 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
     analysis_i.append(SV_CALLER)
     analysis_list.append(analysis_i)
   #this should be pretty fast and low mem so this is prob fine on the cluster
-  analysis_pool = Pool(5*TOTAL_CORES)
+  analysis_pool = Pool(2*TOTAL_CORES)
   scores = analysis_pool.starmap(doanalysis, analysis_list)
   analysis_pool.close()
   print('scores round i', scores)
@@ -320,9 +320,9 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
   return scores 
 
 def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory):
-  points = doSimulationPipeline(X, lamb, iteration_number, opt_store_directory)
-  points = np.array(points)
-  #points = loss_function_matrix(X)
+  #points = doSimulationPipeline(X, lamb, iteration_number, opt_store_directory)
+  #points = np.array(points)
+  points = loss_function_matrix(X)
   points = points.reshape(-1,1)
   costs = cost_function(X)
   costs = costs.reshape(-1,1)

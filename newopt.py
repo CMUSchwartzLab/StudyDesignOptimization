@@ -44,27 +44,24 @@ from smt.utils.design_space import (
 )
 #CONSTANTS
 eps = 1e-9
-n_samples = 10
-budget = 8
+n_samples = 6
+budget = 2
 n_latins = 2
 lamb = 0
 cost_max = 1000000
-NUM_SIM_CORES = 50
-NUM_ALIGN_CORES = 10
-PARALLEL_CORES = 10
-TOTAL_CORES = 50
+NUM_CORES = 50
 SNV_CALLER = 'strelka'
 CNV_CALLER = 'None'
-SV_CALLER = 'gatk'
-REF_NAME = 'hg38'
+SV_CALLER = 'delly'
+REF_NAME = 'fakegenome'
 mesh_size = 5
-lowerbounds = [500,1,0,0,0,0, 1]
-upperbounds = [10000,20,0.1,1,1,1, 2]
-categorical_flag = [1,0,0,1,1,1,1]
-perturbation_vector = [200,1,0.009,1,1,1, 1]
-direction_matrix= np.array([200, 3,0.009,1,1,1, 1])
-e_coeff = 0.45
-alpha = 6
+lowerbounds = [150,1,0,0,0,0, 1]
+upperbounds = [5000,50,0.00001,1,1,1, 2]
+categorical_flag = [1,0,0,1,1,0,1]
+perturbation_vector = [100,1,0.000001,1,1,0.01, 1]
+direction_matrix= np.array([200, 5,0.000001,1,1,0.02, 1])
+e_coeff = 0.7
+alpha = 5
 grad_d_param = 1
 
 design_space = DesignSpace ([
@@ -73,7 +70,7 @@ design_space = DesignSpace ([
     FloatVariable (lowerbounds[2], upperbounds[2]), #error rate
     IntegerVariable (lowerbounds[3], upperbounds[3]), #number of single cells
     CategoricalVariable ([lowerbounds[4], upperbounds[4]]), #paired or unpaired
-    CategoricalVariable ([lowerbounds[5], upperbounds[5]]), #WES OR WGS
+    FloatVariable (lowerbounds[5], upperbounds[5]), #fraction of genome produced
     IntegerVariable(lowerbounds[6], upperbounds[6]) # number of samples
 ])
 
@@ -244,7 +241,7 @@ def fullMeshIteration(initial_points, number_mesh_points, current_mesh_width, di
   x_points = np.array(x_points)
   return x_points
 
-def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata = True):
+def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata = False):
   simulation_list = []
   results_directories = []
   for i in range(len(X)):
@@ -258,7 +255,7 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
     error_rate = X[i][2]
     single_cells = X[i][3]
     paired = X[i][4]
-    WES = round(X[i][5])
+    WES = 1-round(X[i][5])
     samples = int(X[i][6])
     subparam_list[2] = samples
     subparam_list[4] = read_len
@@ -270,10 +267,10 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
     subparam_list[11] = coverage
     simulation_list.append(subparam_list)
     results_directories.append(dataid)
-  pool = Pool(NUM_SIM_CORES)
+  pool = Pool(NUM_CORES)
   #HERE THIS NEEDS TO BE SPLIT INTO ALL COMPUTERS and then CORES PER COMP
   pool.starmap(generateResults, simulation_list)
-  pool.close()
+
   print('FINISHED SIMULATING')
   #generate and parse the results of the simualtions
   #HERE THIS NEEDS TO BE SPLIT INTO COMPUTERS AND CORES PER COMP
@@ -283,19 +280,16 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
     command_i.append(opt_store_directory)
     command_i.append(i)
     command_i.extend([1,0,0])
-    command_i.append(NUM_ALIGN_CORES)
+    command_i.append(NUM_CORES)
     command_i.append(SNV_CALLER)
     command_i.append(CNV_CALLER)
     command_i.append(SV_CALLER)
     command_i.append(REF_NAME)
     command_list.append(command_i)
   #here split command list accross computers
-  threading_pool = Pool(5*PARALLEL_CORES)
-  #for i in command_list:
-  #  doalignsortcall(*i)
-  threading_pool.starmap(doalignsortcall, command_list)
+  for i in command_list:
+    doalignsortcall(*i)
   print('ANALYZING NOW')
-  threading_pool.close()
   #run fullAnalysis
   analysis_list = []
   for i in results_directories:
@@ -306,9 +300,7 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
     analysis_i.append(SV_CALLER)
     analysis_list.append(analysis_i)
   #this should be pretty fast and low mem so this is prob fine on the cluster
-  analysis_pool = Pool(5*TOTAL_CORES)
-  scores = analysis_pool.starmap(doanalysis, analysis_list)
-  analysis_pool.close()
+  scores = pool.starmap(doanalysis, analysis_list)
   print('scores round i', scores)
   #wipe data -- COMMENT/DELETE THIS BLOCK IF YOU WANT TO KEEP ALL THE DATA OTHERWISE INTERMEDIARY DATA IS WIPED!
   if(wipedata):
@@ -321,6 +313,7 @@ def doSimulationPipeline(X,lamb, iteration_number, opt_store_directory, wipedata
 
 def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory):
   points = doSimulationPipeline(X, lamb, iteration_number, opt_store_directory)
+  points = [1- point for point in points]
   points = np.array(points)
   #points = loss_function_matrix(X)
   points = points.reshape(-1,1)
@@ -438,11 +431,6 @@ def updatePQ(allX, newX):
   allX = np.vstack((allX,newX))
   return allX[allX[:, -1].argsort()]
 
-def saveSurrogate(surrogate_model, store_dir, iteration_number):
-  filename = store_dir+'surrogate{}.pkl'.format(iteration_number)
-  with open(filename, 'wb') as f:
-    pickle.dump(surrogate_model, f)
-
 def fullOptimization(design_space, budget, n_samples, lowerbounds, upperbounds, n_latins, e_coeff, alpha, direction_matrix, categorical_flag, lamb,mesh_size, grad_d_param, perturbation_vector, cost_function, maximum_cost):
   n_doe = int(n_samples*0.5)
   n_doe = max(1, n_doe) #safety check
@@ -489,7 +477,6 @@ def fullOptimization(design_space, budget, n_samples, lowerbounds, upperbounds, 
   iterX = allX.copy()
   #SAVE allX to disk here
   np.savetxt(opt_store_directory+'allXinit.txt', allX, fmt = '%s')
-  saveSurrogate(sm_loss, opt_store_directory, iteration_number)
   opt_value = math.inf
   while(budget > 0):
     #can swap here to iterX
@@ -508,7 +495,6 @@ def fullOptimization(design_space, budget, n_samples, lowerbounds, upperbounds, 
     mesh_size, grad_d_param, e_coeff = analyzeCurrentRound(originalX, iterX, iteration_number, mesh_size, grad_d_param, e_coeff)
     #SAVE allX to DISK HERE
     np.savetxt(opt_store_directory+'allX{}.txt'.format(iteration_number), allX, fmt = '%s')
-    saveSurrogate(sm_loss, opt_store_directory, iteration_number)
   return allX, sm_loss
 #n_test = 100
 #X_test = sampling(n_test)

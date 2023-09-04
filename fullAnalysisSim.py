@@ -315,10 +315,16 @@ def doanalysis(data_directory, data_name, snv_caller = 'freebayes', sv_caller = 
 			aggregate_vcfs.append(results_dir)
 			if(sv_flag): 
 				aggregate_sv_vcfs.append(sv_results_dir)
-				deletion_metric = compareVcftoInfoSV(sv_results_dir,f, m, 2) #TODO: might be a type flag here
-				inversion_metric = compareVcftoInfoSV(sv_results_dir,f,m, 4)
-				sv_resultfile.write('tumor {}, sample {}, deletion_metric {}, inversion_metric {}\n'.format(i,j,deletion_metric, inversion_metric))
-			tp,fp,mm =compareVcftoInfoSNV(results_dir, f,m, snv_caller)
+				try:
+					deletion_metric = compareVcftoInfoSV(sv_results_dir,f, m, 2) #TODO: might be a type flag here
+					inversion_metric = compareVcftoInfoSV(sv_results_dir,f,m, 4)
+					sv_resultfile.write('tumor {}, sample {}, deletion_metric {}, inversion_metric {}\n'.format(i,j,deletion_metric, inversion_metric))
+				except:
+					print('didnt do sv')
+			try:
+				tp,fp,mm =compareVcftoInfoSNV(results_dir, f,m, snv_caller)
+			except:
+				tp,fp,mm = 0,0,1
 			result_file.write('tumor {}, sample {}, values: {}, {}, {}\n'.format(i,j,tp,fp,mm))
 		for k in range(max_sample_num+1): 
 			total_run = [item for item in subtuples_list if item[0] == str(k)]
@@ -348,7 +354,10 @@ def doanalysis(data_directory, data_name, snv_caller = 'freebayes', sv_caller = 
 					if(snv_caller == 'gatk'):
 						the_dir = data_directory+'results/{}/tumor_{}/samplenum_{}_singlecell_{}/snv/gatk/gatk.vcf'.format(data_name, i,item[0], item[1])
 				subaggregate_list.append(the_dir)
-			tp,fp,mm= compareVcftoInfoSNV(subaggregate_list,f,m, snv_caller)
+			try:
+				tp,fp,mm= compareVcftoInfoSNV(subaggregate_list,f,m, snv_caller)
+			except:
+				tp,fp,mm = 0, 0, 1
 			list_of_parameters.extend([i,k,str(-1),tp,fp,mm])
 			list_of_list_vals.append(list_of_parameters)
 			result_file.write('tumor {}, sample {}, values: {}, {}, {}\n'.format(i,k,tp,fp,mm))
@@ -361,11 +370,14 @@ def doanalysis(data_directory, data_name, snv_caller = 'freebayes', sv_caller = 
 					else: 
 						the_sv_dir = data_directory+'results/{}/tumor_{}/samplenum_{}_singlecell_{}/sv/{}/tumorB_{}_{}_{}.vcf'.format(data_name, i, item[0], item[1],sv_caller,i,item[0],item[1])
 				sv_subaggregate_list.append(the_sv_dir)
-				deletion_metric = compareVcftoInfoSV(sv_subaggregate_list, f,m, 2)
-				inversion_metric = compareVcftoInfoSV(sv_subaggregate_list, f,m,4)
-				sv_resultfile.write('tumor {}, sample {}, del met {}, inv met {}\n'.format(i,k,deletion_metric, inversion_metric))
-				sv_param_list.extend([i,k,str(-1),deletion_metric, inversion_metric])
-				sv_lol_vals.append(sv_param_list)
+				try:
+					deletion_metric = compareVcftoInfoSV(sv_subaggregate_list, f,m, 2)
+					inversion_metric = compareVcftoInfoSV(sv_subaggregate_list, f,m,4)
+					sv_resultfile.write('tumor {}, sample {}, del met {}, inv met {}\n'.format(i,k,deletion_metric, inversion_metric))
+					sv_param_list.extend([i,k,str(-1),deletion_metric, inversion_metric])
+					sv_lol_vals.append(sv_param_list)
+				except:
+					print('bug')
 		try:
 			tp,fp,mm = compareVcftoInfoSNV(aggregate_vcfs,f,m, snv_caller)
 		except: 

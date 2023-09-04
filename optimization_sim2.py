@@ -1194,21 +1194,15 @@ def generateResults(storage_dir, dataid, num_samples_list, num_tumors_list, read
         if (name in reduced_chrom_dict):
             print(fasta.name)
             full_sequence = str(fasta.seq).upper()
-            total_len = len(full_sequence)
-            start_index = random.randint(int(0.25*total_len), int(0.75*total_len))
-            start_index = 0
-            cutoff_idx = int(0.1*len(full_sequence))
-            mini_string = full_sequence[start_index:start_index+cutoff_idx]
+            cutoff_idx = int(0.0001*len(full_sequence))
+            mini_string = full_sequence[:cutoff_idx]
             chroms.append(mini_string)
             chroms.append(mini_string)
         elif(name in sex_chroms):
             print(fasta.name)
             full_sequence = str(fasta.seq).upper()
-            total_len = len(full_sequence)
-            start_index = random.randint(int(0.25*total_len), int(0.75*total_len))
-            start_index = 0
-            cutoff_idx = int(0.1*len(full_sequence))
-            mini_string = full_sequence[start_index:start_index+cutoff_idx]
+            cutoff_idx = int(0.0001*len(full_sequence))
+            mini_string = full_sequence[:cutoff_idx]
             chroms.append(mini_string)
         else:
             continue
@@ -1482,7 +1476,7 @@ if(random.random() < 0.5):
 else: 
     random_list = ultrahigh_rates_list
 #SNV, CNV, DEL, DELSMALL, INVERSION, TRANSLOCATION, BFB, CHROMOTHRIP, CHROMOPLEX, INSERTIONSMALL, KATAEGIS, ANEUPLOIDY
-list_of_rates = [high_rates_list, ultralow_rates_list, high_rates_list, ultralow_rates_list, high_rates_list, ultralow_rates_list,ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list]
+list_of_rates = [high_rates_list, medium_rates_list, ultralow_rates_list, high_rates_list, high_rates_list, ultralow_rates_list,ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list, ultralow_rates_list]
 dataid = 'booltest'
 storage_dir = '/projects/schwartzlabscratch/DesignOpt/test_results/'
 parameter_list = [storage_dir, dataid, num_samples_list, num_tumors_list, read_len_list, error_rate_list, frag_len_list, alpha_list, paired_list, WES_list, num_single_cell_list, coverage_list, liquid_biopsy_list, ctdna_frac_list, use_leaf_only, clone_list, pop_list, batch_size, subblock_size, LSH_hash, kmer_len,
