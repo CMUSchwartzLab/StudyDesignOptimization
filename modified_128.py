@@ -44,7 +44,7 @@ from smt.utils.design_space import (
 )
 #CONSTANTS
 eps = 1e-9
-n_samples = 15
+n_samples = 20
 budget = 8
 n_latins = 2
 lamb = 0
@@ -53,18 +53,18 @@ NUM_SIM_CORES = 100
 NUM_ALIGN_CORES = 16
 PARALLEL_CORES = 16
 TOTAL_CORES = 140
-SNV_CALLER = 'strelka'
+SNV_CALLER = 'None'
 CNV_CALLER = 'None'
 SV_CALLER = 'dysgu'
 REF_NAME = 'hg38'
 mesh_size = 5
-lowerbounds = [50,1,0,0,0,0, 1]
-upperbounds = [10000,100,0.1,1,1,1, 2]
+lowerbounds = [100,1,0,0,1,0, 1]
+upperbounds = [10000,50,0.1,1,1.01,1, 2]
 categorical_flag = [1,0,0,1,1,1,1]
 perturbation_vector = [200,3,0.009,1,1,1, 1]
 direction_matrix= np.array([200, 5,0.009,1,1,1, 1])
 e_coeff = 0.4
-alpha = 6
+alpha = 10
 grad_d_param = 1
 
 design_space = DesignSpace ([
@@ -73,7 +73,7 @@ design_space = DesignSpace ([
     FloatVariable (lowerbounds[2], upperbounds[2]), #error rate
     IntegerVariable (lowerbounds[3], upperbounds[3]), #number of single cells
     IntegerVariable (lowerbounds[4], upperbounds[4]), #paired or unpaired
-    IntegerVariable (lowerbounds[5], upperbounds[5]), #WES OR WGS 1 is WES
+    IntegerVariable (lowerbounds[5], upperbounds[5]), #WES OR WGS 0 is wgs 1 is wes
     IntegerVariable(lowerbounds[6], upperbounds[6]) # number of samples
 ])
 
@@ -106,7 +106,7 @@ def loss_function_matrix(X):
   return np.apply_along_axis(loss_function_vec, 1, X)
 def budget_function(x_1, x_2, x_3, x_4, x_5, x_6, x_7):
   read_len_budget = 30*x_1
-  coverage_budget = 3*x_2
+  coverage_budget = 30*x_2
   error_budget = 500*(1- (1/(1+(math.sqrt((1/(x_3+eps))-1)))))
   cell_budget = 300
   cell_budget_scaler = x_4+1
@@ -116,7 +116,7 @@ def budget_function(x_1, x_2, x_3, x_4, x_5, x_6, x_7):
     paired_modifier = 1.3
   else:
     paired_modifier = 1
-  if(x_6 == 1): 
+  if(x_6 == 1):
     wgs_modifier = 0.1
   else: 
     wgs_modifier = 1

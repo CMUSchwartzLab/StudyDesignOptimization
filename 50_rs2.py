@@ -44,22 +44,22 @@ from smt.utils.design_space import (
 )
 #CONSTANTS
 eps = 1e-9
-n_samples = 10
+n_samples = 15
 budget = 8
 n_latins = 2
-lamb = 0
+lamb = 1
 cost_max = 1000000
 NUM_SIM_CORES = 50
-NUM_ALIGN_CORES = 10
+NUM_ALIGN_CORES = 8
 PARALLEL_CORES = 10
 TOTAL_CORES = 50
 SNV_CALLER = 'strelka'
 CNV_CALLER = 'None'
-SV_CALLER = 'gatk'
+SV_CALLER = 'dysgu'
 REF_NAME = 'hg38'
 mesh_size = 5
-lowerbounds = [500,1,0,0,0,0, 1]
-upperbounds = [10000,20,0.1,1,1,1, 2]
+lowerbounds = [50,1,0,0,0,0, 1]
+upperbounds = [10000,100,0.1,1,1,1, 2]
 categorical_flag = [1,0,0,1,1,1,1]
 perturbation_vector = [200,1,0.009,1,1,1, 1]
 direction_matrix= np.array([200, 3,0.009,1,1,1, 1])

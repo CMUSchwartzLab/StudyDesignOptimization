@@ -244,7 +244,7 @@ def callSV(normal_bam, tumor_bam, ref, result_dir, caller='delly', threads=4):
     if caller == 'gridss': 
         cmd = '/home/assrivat/gridss --jar /home/assrivat/gridss-2.13.2-gridss-jar-with-dependencies.jar -r {}.fa -t 8 -o {}/{}.vcf {} {}'.format(ref, result_dir, prefix, normal_bam, tumor_bam)
         os.system(cmd)
-    if caller == 'dysgu': 
+    if caller == 'dysgu':
         cmd = 'dysgu run -p {} {}.fa {} {} > {}/{}.vcf -x'.format(threads, ref, result_dir, tumor_bam, result_dir, prefix) 
         os.system(cmd)
 
@@ -357,8 +357,8 @@ def run_variant(data_directory, data_name, ref, tumor_num, sample_num, \
         normal_bam = data_directory+'results/{}/normal/normal.sorted.bam'.format(data_name)
     else: 
         #normal_bam = data_directory+'results/normal/normal.sorted.bam'
-        #normal_bam = '/projects/schwartzlabscratch/DesignOpt/fakereference/results/reference/normal/normal.sorted.bam'
-        normal_bam = '/projects/schwartzlabscratch/DesignOpt/reference/results/reference/normal/normal.sorted.bam'
+        normal_bam = '/projects/schwartzlabscratch/DesignOpt/fakereference/results/reference/normal/normal.sorted.bam'
+        #normal_bam = '/projects/schwartzlabscratch/DesignOpt/reference/results/reference/normal/normal.sorted.bam'
     if not single_cell_flag:
         tumor_bam = '%s/tumor_%s/samplenum_%s/tumorB_%s_%s.sorted.bam' % (result_dir, tumor_num, sample_num, tumor_num, sample_num)
     else:
@@ -401,6 +401,7 @@ def run_variant(data_directory, data_name, ref, tumor_num, sample_num, \
             exit()
             
     if sv_caller != 'None':
+        print("STARTING SV CALLS")
         if not single_cell_flag:
             sv_result_dir = '%s/tumor_%s/samplenum_%s/sv' % (result_dir, tumor_num, sample_num)
         else: 
@@ -446,7 +447,7 @@ def checkPaired(search_dir):
                  list_of_parameters.append(val)
             tracker += 1
     #if it equals 1 or true
-    if(list_of_parameters[7] == ' True' or list_of_parameters[7] == ' 1.0'): 
+    if(list_of_parameters[7] == ' True' or list_of_parameters[7] == ' 1.0' or list_of_parameters[7] == ' 1'): 
         return True
     else: 
          return False
