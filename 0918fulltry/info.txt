@@ -1,0 +1,1 @@
+Genome values in this experiment were rounded up or down. For example, 0.4 would be rounded down to 0 which implies Genome sequenced rather than exome
