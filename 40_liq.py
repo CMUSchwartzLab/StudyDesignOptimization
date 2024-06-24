@@ -50,10 +50,10 @@ budget = 10
 n_latins = 2
 lamb = 0
 cost_max = 300
-NUM_SIM_CORES = 100
-NUM_ALIGN_CORES = 10
-PARALLEL_CORES = 10
-TOTAL_CORES = 125
+NUM_SIM_CORES = 40
+NUM_ALIGN_CORES = 5
+PARALLEL_CORES = 5
+TOTAL_CORES = 40
 SNV_CALLER = 'strelka'
 CNV_CALLER = 'None'
 SV_CALLER = 'None'
@@ -417,11 +417,12 @@ def loadlistoflistvcf(list_of_vcfs):
     called_muts = set()
     for i in d2:
       z = i.split('\t')
-      if(len(z) == 11 and z[0] in clist and z[6] == 'PASS'):
+      if(len(z) == 11 and z[0] in clist):
         tup = (z[0], int(z[1]))
         called_muts.add(tup)
     list_of_tups = sorted(list(called_muts))
-    lol.append(list_of_tups)
+    list_of_list = sorted([list(x) for x in list_of_tups])
+    lol.append(list_of_list)
   return lol
   
 def metriccomparelists(index_of_results, sample_lists, ground_lists): 
@@ -429,24 +430,13 @@ def metriccomparelists(index_of_results, sample_lists, ground_lists):
   for i in range(len(sample_lists)): 
     list_result = sample_lists[i]
     list_ground = ground_lists[index_of_results[i]]
-    intersect = list(set(list_result) & set(list_ground))
-    if(len(list_ground) == 0): 
-      recovery = 0
-    else:
-      recovery = len(intersect)/len(list_ground)
-    if(len(list_ground) < len(list_result)): 
-      scores_samples.append(0)
-    elif(len(list_ground) == 0): 
-      scores_samples.append(0)
-    else:
-      scores_samples.append(recovery)
-    print(len(list_ground), len(intersect), len(list_result))
+    intersect = list(set(list_result) & list(ground))
+    recovery = len(intersect)/len(list_ground)
+    scores_samples.append(recovery)
   missed_info_count = len(ground_lists)-len(sample_lists)
-  total_count = len(sample_lists)
-  f1 = missed_info_count/len(ground_lists)
-  f2 = total_count/len(ground_lists)
+  total_count - len(ground_lists)
   mean_score = sum(scores_samples)/len(scores_samples)
-  total_score = f1*0 + f2*mean_score
+  total_score = missed_info_count*0 + total_count*mean_score
   return total_score
 
 
@@ -454,7 +444,7 @@ def doSingleComparison(sample_dir, ground_dir):
   all_sample_vcfs = []
   all_ground_vcfs = [] 
   results_dir = sample_dir + '/results'
-  all_result_dirs = sorted(glob.glob(results_dir + '/*/'))
+  all_result_dirs = sorted(glob.glob(results_dir + '/*/')
   index_of_results = []
   for i in all_result_dirs: 
     index = int(i[-3:-1])
@@ -464,9 +454,9 @@ def doSingleComparison(sample_dir, ground_dir):
     path = i+'snv/strelka/results/variants/somatic.snvs.vcf.gz'
     all_sample_vcfs.append(path)
   all_ground_results_dir = sorted(glob.glob(ground_dir + '/*/'))
-  for j in all_ground_results_dir:
+  for j in all_ground_results_dir;
     path  = j + 'snv/strelka/results/variants/somatic.snvs.vcf.gz'
-    all_ground_vcfs.append(path)
+    all_ground_vcfs,append(path)
   list_of_list_sample_snvs = loadlistoflistvcf(all_sample_vcfs)
   list_of_list_ground_snvs = loadlistoflistvcf(all_ground_vcfs)
   score = metriccomparelists(index_of_results, list_of_list_sample_snvs, list_of_list_ground_snvs)  
@@ -478,8 +468,6 @@ def getscoresfromcalls(directory_withfastq, ground_truth_directory):
   commands = []
   for i in sample_directories:
      commands.append([i, ground_truth_directory])
-  print(commands)
-  print(doSingleComparison)
   all_scores = scoring_pool.starmap(doSingleComparison, commands)
   scoring_pool.close()
   return all_scores
@@ -487,7 +475,7 @@ def getscoresfromcalls(directory_withfastq, ground_truth_directory):
 def doLiquidBiopsySimulationPipeline(X, lamb, iteration_number, opt_store_directory, liquid_bio_source_dir, ground_truth_directory, wipe_data = False):
   #From X create subsetted FASTQs for the liquid biopsy
   #parallelize herei
-  subset_directory = createSubsetFastQ(X, opt_store_directory, iteration_number, liquid_bio_source_dir)
+  subset_directory = createSubsetFastQ(X, opt_store_directory, iteration_number)
   print("FINISHED SUBSETTING")
   #Run through the directory and apply the variant caller to the directory
   #create pool here for multithreading
