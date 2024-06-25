@@ -46,9 +46,9 @@ from smt.utils.design_space import (
 #CONSTANTS
 eps = 1e-9
 n_samples = 4
-budget = 10
+budget = 8
 n_latins = 2
-lamb = 0
+lamb = 1
 cost_max = 300
 NUM_SIM_CORES = 40
 NUM_ALIGN_CORES = 5
@@ -417,12 +417,11 @@ def loadlistoflistvcf(list_of_vcfs):
     called_muts = set()
     for i in d2:
       z = i.split('\t')
-      if(len(z) == 11 and z[0] in clist):
+      if(len(z) == 11 and z[0] in clist and z[6] == 'PASS'):
         tup = (z[0], int(z[1]))
         called_muts.add(tup)
     list_of_tups = sorted(list(called_muts))
-    list_of_list = sorted([list(x) for x in list_of_tups])
-    lol.append(list_of_list)
+    lol.append(list_of_tups)
   return lol
   
 def metriccomparelists(index_of_results, sample_lists, ground_lists): 
@@ -430,13 +429,24 @@ def metriccomparelists(index_of_results, sample_lists, ground_lists):
   for i in range(len(sample_lists)): 
     list_result = sample_lists[i]
     list_ground = ground_lists[index_of_results[i]]
-    intersect = list(set(list_result) & list(ground))
-    recovery = len(intersect)/len(list_ground)
-    scores_samples.append(recovery)
+    intersect = list(set(list_result) & set(list_ground))
+    if(len(list_ground) == 0): 
+      recovery = 0
+    else:
+      recovery = len(intersect)/len(list_ground)
+    if(len(list_ground) < len(list_result)): 
+      scores_samples.append(0)
+    elif(len(list_ground) == 0): 
+      scores_samples.append(0)
+    else:
+      scores_samples.append(recovery)
+    print(len(list_ground), len(intersect), len(list_result))
   missed_info_count = len(ground_lists)-len(sample_lists)
-  total_count - len(ground_lists)
+  total_count = len(sample_lists)
+  f1 = missed_info_count/len(ground_lists)
+  f2 = total_count/len(ground_lists)
   mean_score = sum(scores_samples)/len(scores_samples)
-  total_score = missed_info_count*0 + total_count*mean_score
+  total_score = f1*0 + f2*mean_score
   return total_score
 
 
@@ -444,7 +454,7 @@ def doSingleComparison(sample_dir, ground_dir):
   all_sample_vcfs = []
   all_ground_vcfs = [] 
   results_dir = sample_dir + '/results'
-  all_result_dirs = sorted(glob.glob(results_dir + '/*/')
+  all_result_dirs = sorted(glob.glob(results_dir + '/*/'))
   index_of_results = []
   for i in all_result_dirs: 
     index = int(i[-3:-1])
@@ -454,9 +464,9 @@ def doSingleComparison(sample_dir, ground_dir):
     path = i+'snv/strelka/results/variants/somatic.snvs.vcf.gz'
     all_sample_vcfs.append(path)
   all_ground_results_dir = sorted(glob.glob(ground_dir + '/*/'))
-  for j in all_ground_results_dir;
+  for j in all_ground_results_dir:
     path  = j + 'snv/strelka/results/variants/somatic.snvs.vcf.gz'
-    all_ground_vcfs,append(path)
+    all_ground_vcfs.append(path)
   list_of_list_sample_snvs = loadlistoflistvcf(all_sample_vcfs)
   list_of_list_ground_snvs = loadlistoflistvcf(all_ground_vcfs)
   score = metriccomparelists(index_of_results, list_of_list_sample_snvs, list_of_list_ground_snvs)  
@@ -464,18 +474,21 @@ def doSingleComparison(sample_dir, ground_dir):
 
 def getscoresfromcalls(directory_withfastq, ground_truth_directory):
   sample_directories = sorted(glob.glob(directory_withfastq+'/*/'))
-  scoring_pool = Pool(12*PARALLEL_CORES)
+  scoring_pool = Pool(PARALLEL_CORES)
   commands = []
   for i in sample_directories:
      commands.append([i, ground_truth_directory])
+  print(commands)
+  print(doSingleComparison)
   all_scores = scoring_pool.starmap(doSingleComparison, commands)
   scoring_pool.close()
+  print(all_scores)
   return all_scores
 
 def doLiquidBiopsySimulationPipeline(X, lamb, iteration_number, opt_store_directory, liquid_bio_source_dir, ground_truth_directory, wipe_data = False):
   #From X create subsetted FASTQs for the liquid biopsy
   #parallelize herei
-  subset_directory = createSubsetFastQ(X, opt_store_directory, iteration_number)
+  subset_directory = createSubsetFastQ(X, opt_store_directory, iteration_number, liquid_bio_source_dir)
   print("FINISHED SUBSETTING")
   #Run through the directory and apply the variant caller to the directory
   #create pool here for multithreading
@@ -502,6 +515,8 @@ def doLiquidBiopsySimulationPipeline(X, lamb, iteration_number, opt_store_direct
   variant_pool.close()
   print("FINISHED CALLING SUBSETS")
   scores = getscoresfromcalls(subset_directory, ground_truth_directory)
+  #save scores 
+  
   print("FINISHED GENERATING SCORES")
   # WIPE subdirectories
   if(wipe_data): 
@@ -522,9 +537,16 @@ def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory
   points = np.array(points)
   #points = loss_function_matrix(X)
   points = points.reshape(-1,1)
+  print(points)
+  print(points.shape)
   costs = cost_function(X)
   costs = costs.reshape(-1,1)
+  print(costs)
+  print(costs.shape)
   total_loss = points + lamb*costs
+  print(total_loss)
+  print(total_loss.shape)
+  print(X.shape)
   return total_loss
 
 def analyzeCurrentRound(allX, iterX, iteration_number, mesh_size, grad_d_param, e_coeff):
@@ -562,6 +584,8 @@ def getNewSetOfPointsFromSurrogate(design_space, surrogate_model, allX , n_sampl
   #construct bounds around low points and sample there
   cutoff = int(0.2*allX.shape[0])
   cutoff = max(1, cutoff)
+  print(allX)
+  print(allX.shape)
   miniarray = allX[:cutoff, :-1]
   miniarray = miniarray.astype(float)
   #print(cutoff, miniarray, allX)
@@ -682,9 +706,19 @@ def fullOptimization(design_space, budget, n_samples, lowerbounds, upperbounds, 
     Xt = nullX[1:,:]
     print('xt shape',Xt.shape)
     #generated from simulator
+  print(allX)
   Yt = simulatePoints(Xt, lamb, cost_function, iteration_number, opt_store_directory)
   filtX, filtY = filterInfinity(Xt, Yt)
+  print(allX)
+  print(filtX, filtY, 'check mat')
   sm_loss.set_training_values(filtX, filtY)
+  sm_loss.train()
+  subX = np.hstack((Xt,Yt))
+  allX = updatePQ(allX, subX)
+  allX = np.delete(allX, (0), axis=0)
+  opt_value = allX[0,-1]
+  print(opt_value)
+  iterX = allX.copy()
   np.savetxt(opt_store_directory+'allX0.txt', allX, fmt = '%s')
   saveSurrogate(sm_loss, opt_store_directory, iteration_number)
   opt_value = math.inf

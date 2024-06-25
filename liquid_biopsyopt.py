@@ -46,13 +46,13 @@ from smt.utils.design_space import (
 #CONSTANTS
 eps = 1e-9
 n_samples = 4
-budget = 10
+budget = 8
 n_latins = 2
 lamb = 0
 cost_max = 300
 NUM_SIM_CORES = 100
-NUM_ALIGN_CORES = 10
-PARALLEL_CORES = 10
+NUM_ALIGN_CORES = 16
+PARALLEL_CORES = 16
 TOTAL_CORES = 125
 SNV_CALLER = 'strelka'
 CNV_CALLER = 'None'
@@ -474,7 +474,7 @@ def doSingleComparison(sample_dir, ground_dir):
 
 def getscoresfromcalls(directory_withfastq, ground_truth_directory):
   sample_directories = sorted(glob.glob(directory_withfastq+'/*/'))
-  scoring_pool = Pool(12*PARALLEL_CORES)
+  scoring_pool = Pool(PARALLEL_CORES)
   commands = []
   for i in sample_directories:
      commands.append([i, ground_truth_directory])
@@ -482,6 +482,7 @@ def getscoresfromcalls(directory_withfastq, ground_truth_directory):
   print(doSingleComparison)
   all_scores = scoring_pool.starmap(doSingleComparison, commands)
   scoring_pool.close()
+  print(all_scores)
   return all_scores
 
 def doLiquidBiopsySimulationPipeline(X, lamb, iteration_number, opt_store_directory, liquid_bio_source_dir, ground_truth_directory, wipe_data = False):
@@ -514,6 +515,8 @@ def doLiquidBiopsySimulationPipeline(X, lamb, iteration_number, opt_store_direct
   variant_pool.close()
   print("FINISHED CALLING SUBSETS")
   scores = getscoresfromcalls(subset_directory, ground_truth_directory)
+  #save scores 
+  
   print("FINISHED GENERATING SCORES")
   # WIPE subdirectories
   if(wipe_data): 
@@ -534,9 +537,16 @@ def simulatePoints(X, lamb, cost_function, iteration_number, opt_store_directory
   points = np.array(points)
   #points = loss_function_matrix(X)
   points = points.reshape(-1,1)
+  print(points)
+  print(points.shape)
   costs = cost_function(X)
   costs = costs.reshape(-1,1)
+  print(costs)
+  print(costs.shape)
   total_loss = points + lamb*costs
+  print(total_loss)
+  print(total_loss.shape)
+  print(X.shape)
   return total_loss
 
 def analyzeCurrentRound(allX, iterX, iteration_number, mesh_size, grad_d_param, e_coeff):
@@ -574,6 +584,8 @@ def getNewSetOfPointsFromSurrogate(design_space, surrogate_model, allX , n_sampl
   #construct bounds around low points and sample there
   cutoff = int(0.2*allX.shape[0])
   cutoff = max(1, cutoff)
+  print(allX)
+  print(allX.shape)
   miniarray = allX[:cutoff, :-1]
   miniarray = miniarray.astype(float)
   #print(cutoff, miniarray, allX)
@@ -694,9 +706,19 @@ def fullOptimization(design_space, budget, n_samples, lowerbounds, upperbounds, 
     Xt = nullX[1:,:]
     print('xt shape',Xt.shape)
     #generated from simulator
+  print(allX)
   Yt = simulatePoints(Xt, lamb, cost_function, iteration_number, opt_store_directory)
   filtX, filtY = filterInfinity(Xt, Yt)
+  print(allX)
+  print(filtX, filtY, 'check mat')
   sm_loss.set_training_values(filtX, filtY)
+  sm_loss.train()
+  subX = np.hstack((Xt,Yt))
+  allX = updatePQ(allX, subX)
+  allX = np.delete(allX, (0), axis=0)
+  opt_value = allX[0,-1]
+  print(opt_value)
+  iterX = allX.copy()
   np.savetxt(opt_store_directory+'allX0.txt', allX, fmt = '%s')
   saveSurrogate(sm_loss, opt_store_directory, iteration_number)
   opt_value = math.inf
