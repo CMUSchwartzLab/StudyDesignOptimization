@@ -48,7 +48,7 @@ eps = 1e-9
 n_samples = 4
 budget = 8
 n_latins = 2
-lamb = 0
+lamb = 1
 cost_max = 300
 NUM_SIM_CORES = 100
 NUM_ALIGN_CORES = 16
@@ -447,7 +447,7 @@ def metriccomparelists(index_of_results, sample_lists, ground_lists):
   f2 = total_count/len(ground_lists)
   mean_score = sum(scores_samples)/len(scores_samples)
   total_score = f1*0 + f2*mean_score
-  return total_score
+  return (1-total_score)
 
 
 def doSingleComparison(sample_dir, ground_dir):
